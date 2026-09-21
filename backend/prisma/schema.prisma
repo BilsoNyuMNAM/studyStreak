@@ -1,0 +1,67 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Subject {
+  id        String         @id @default(cuid())
+  name      String
+  color     String
+  icon      String?
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  sessions  StudySession[]
+
+  @@map("subjects")
+}
+
+model StudySession {
+  id              String   @id @default(cuid())
+  subjectId       String
+  subject         Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  subjectName     String
+  subjectColor    String
+  durationMinutes Int
+  durationSeconds Int
+  startTime       DateTime
+  endTime         DateTime
+  mode            String   @default("pomodoro")
+  notes           String?
+  completed       Boolean  @default(true)
+  createdAt       DateTime @default(now())
+
+  @@index([startTime])
+  @@index([subjectId])
+  @@map("study_sessions")
+}
+
+model Habit {
+  id          String            @id @default(cuid())
+  name        String
+  color       String            @default("#10b981")
+  icon        String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  completions HabitCompletion[]
+
+  @@map("habits")
+}
+
+model HabitCompletion {
+  id        String   @id @default(cuid())
+  habitId   String
+  habit     Habit    @relation(fields: [habitId], references: [id], onDelete: Cascade)
+  date      String   // Format: YYYY-MM-DD
+  completed Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@unique([habitId, date])
+  @@index([date])
+  @@index([habitId])
+  @@map("habit_completions")
+}

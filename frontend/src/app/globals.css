@@ -1,0 +1,196 @@
+@import "tailwindcss";
+
+:root {
+  /* Default Pure OLED Dark Theme */
+  --canvas: #000000;
+  --surface-1: #09090b;
+  --surface-2: #121215;
+  --surface-3: #18181b;
+  --surface-4: #27272a;
+  
+  --hairline: #1f1f23;
+  --hairline-strong: #2e2e34;
+  --hairline-subtle: #141417;
+  
+  --primary: #ffffff;
+  --primary-hover: #e4e4e7;
+  --primary-focus: #d4d4d8;
+  --on-primary: #000000;
+  
+  --accent-streak: #10b981; /* Emerald */
+  --accent-muted: #27272a;
+  
+  --ink: #f4f4f5;
+  --ink-muted: #a1a1aa;
+  --ink-subtle: #71717a;
+  --ink-tertiary: #52525b;
+
+  --modal-bg: #09090b;
+  --input-bg: #121215;
+  --input-border: #27272a;
+  --tooltip-bg: #121215;
+  --chart-line: #ffffff;
+  --chart-grid: #27272a;
+  --chart-empty: #18181b;
+  --chart-fill: #e4e4e7;
+
+  --background: var(--canvas);
+  --foreground: var(--ink);
+}
+
+.light, [data-theme="light"] {
+  /* Crisp Minimalist Light Theme */
+  --canvas: #f8fafc;
+  --surface-1: #ffffff;
+  --surface-2: #f1f5f9;
+  --surface-3: #e2e8f0;
+  --surface-4: #cbd5e1;
+  
+  --hairline: #e2e8f0;
+  --hairline-strong: #cbd5e1;
+  --hairline-subtle: #f1f5f9;
+  
+  --primary: #0f172a;
+  --primary-hover: #1e293b;
+  --primary-focus: #334155;
+  --on-primary: #ffffff;
+  
+  --accent-streak: #059669;
+  --accent-muted: #e2e8f0;
+  
+  --ink: #0f172a;
+  --ink-muted: #475569;
+  --ink-subtle: #64748b;
+  --ink-tertiary: #94a3b8;
+
+  --modal-bg: #ffffff;
+  --input-bg: #f8fafc;
+  --input-border: #cbd5e1;
+  --tooltip-bg: #ffffff;
+  --chart-line: #0f172a;
+  --chart-grid: #e2e8f0;
+  --chart-empty: #e2e8f0;
+  --chart-fill: #0f172a;
+
+  --background: var(--canvas);
+  --foreground: var(--ink);
+}
+
+body {
+  background-color: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Monolithic Sleek Cards & Panels */
+.sleek-card {
+  background-color: var(--surface-1);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  color: var(--ink);
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.sleek-card:hover {
+  border-color: var(--hairline-strong);
+}
+
+.sleek-panel {
+  background-color: var(--surface-1);
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  color: var(--ink);
+}
+
+/* Form Inputs & Selects */
+.theme-input {
+  background-color: var(--input-bg);
+  border: 1px solid var(--input-border);
+  color: var(--ink);
+  border-radius: 6px;
+  transition: border-color 0.15s ease;
+}
+
+.theme-input:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.theme-input::placeholder {
+  color: var(--ink-subtle);
+}
+
+/* Button Styles */
+.btn-primary {
+  background-color: var(--primary);
+  color: var(--on-primary);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 7px 14px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: background-color 0.15s ease, opacity 0.15s ease;
+}
+
+.btn-primary:hover {
+  background-color: var(--primary-hover);
+}
+
+.btn-secondary {
+  background-color: var(--surface-2);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 7px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--hairline);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.btn-secondary:hover {
+  background-color: var(--surface-3);
+  border-color: var(--hairline-strong);
+}
+
+.btn-ghost {
+  background-color: transparent;
+  color: var(--ink-muted);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 10px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.btn-ghost:hover {
+  color: var(--ink);
+  background-color: var(--surface-2);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--surface-3);
+  border-radius: 2px;
+}
