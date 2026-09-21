@@ -19,7 +19,7 @@ app.use(
 app.use(express.json());
 
 // Request logger middleware
-app.use((req, res, next) => {
+app.use((req: express.Request, res: express.Response, next: express.NextFunction) => {
   const start = Date.now();
   res.on("finish", () => {
     const duration = Date.now() - start;
@@ -34,7 +34,7 @@ app.use("/api/sessions", sessionRoutes);
 app.use("/api/habits", habitRoutes);
 app.use("/api/seed", seedRoutes);
 
-app.get("/api/health", (req, res) => {
+app.get("/api/health", (req: express.Request, res: express.Response) => {
   res.status(200).json({ status: "healthy", timestamp: new Date().toISOString() });
 });
 
