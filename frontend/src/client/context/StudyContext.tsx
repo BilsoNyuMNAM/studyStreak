@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Subject, StudySession, StreakStats, TimerMode, Habit, HabitCompletion } from "@/shared/types";
-import { DEFAULT_SUBJECTS, generateSeedSessions } from "@/shared/utils/initialData";
+import { DEFAULT_SUBJECTS } from "@/shared/utils/initialData";
 import { formatDateKey } from "@/shared/utils";
 
 const DEFAULT_HABITS: Habit[] = [
@@ -153,7 +153,7 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       if (sessionsRes.status === "fulfilled" && sessionsRes.value.ok) {
         const json = await sessionsRes.value.json();
-        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+        if (json.success && Array.isArray(json.data)) {
           const sessList: StudySession[] = json.data.map((s: {
             id: string;
             subjectId: string;
@@ -194,11 +194,14 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (!loadedSessions) {
         const localSess = localStorage.getItem(STORAGE_KEYS.SESSIONS);
         if (localSess) {
-          setSessions(JSON.parse(localSess));
+          try {
+            setSessions(JSON.parse(localSess));
+          } catch {
+            setSessions([]);
+          }
         } else {
-          const seeds = generateSeedSessions();
-          setSessions(seeds);
-          localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(seeds));
+          setSessions([]);
+          localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify([]));
         }
       }
       if (!loadedHabits) {
@@ -242,11 +245,10 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           const parsed = JSON.parse(localSess);
           if (Array.isArray(parsed)) setSessions(parsed);
         } catch {
-          setSessions(generateSeedSessions());
+          setSessions([]);
         }
       } else {
-        const seeds = generateSeedSessions();
-        setSessions(seeds);
+        setSessions([]);
       }
 
       const localHabs = localStorage.getItem(STORAGE_KEYS.HABITS);
@@ -530,19 +532,13 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const resetAllData = async () => {
-    const seeds = generateSeedSessions();
-    setSessions(seeds);
+    setSessions([]);
     setSubjects(DEFAULT_SUBJECTS);
     setHabits(DEFAULT_HABITS);
     if (typeof window !== "undefined") {
-      localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(seeds));
+      localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify([]));
       localStorage.setItem(STORAGE_KEYS.SUBJECTS, JSON.stringify(DEFAULT_SUBJECTS));
       localStorage.setItem(STORAGE_KEYS.HABITS, JSON.stringify(DEFAULT_HABITS));
-    }
-    try {
-      await fetch(`${API_BASE}/seed`, { method: "POST" });
-    } catch (e) {
-      console.warn("Seed endpoint call error:", e);
     }
   };
 
