@@ -53,6 +53,7 @@ interface StudyContextType {
   pauseTimer: () => void;
   resetTimer: () => void;
   completeTimerSession: (overrideDurationSec?: number) => Promise<void>;
+  isSaving: boolean;
   showSavedToast: boolean;
   setShowSavedToast: (show: boolean) => void;
 }
@@ -85,6 +86,9 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
   const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null);
   const [showSavedToast, setShowSavedToast] = useState<boolean>(false);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+  const isSavingRef = useRef<boolean>(false);
+  const lastTickRef = useRef<number | null>(null);
 
   // Audio tone generator
   const playChime = useCallback(() => {
@@ -547,21 +551,25 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!sessionStartTime) {
       setSessionStartTime(new Date());
     }
+    lastTickRef.current = Date.now();
     setIsTimerRunning(true);
     setShowSavedToast(false);
   }, [sessionStartTime]);
 
   const pauseTimer = useCallback(() => {
+    lastTickRef.current = null;
     setIsTimerRunning(false);
   }, []);
 
   const resetTimer = useCallback(() => {
+    lastTickRef.current = null;
     setIsTimerRunning(false);
     setTimerSecondsElapsed(0);
     setSessionStartTime(null);
   }, []);
 
   const setTimerMode = useCallback((newMode: TimerMode) => {
+    lastTickRef.current = null;
     setIsTimerRunning(false);
     setTimerSecondsElapsed(0);
     setSessionStartTime(null);
@@ -575,71 +583,101 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, []);
 
-  // Complete & Save Session Function
+  // Complete & Save Session Function (guarded with mutex lock to eliminate duplicate submissions)
   const completeTimerSession = useCallback(
     async (overrideDurationSec?: number) => {
-      setIsTimerRunning(false);
+      if (isSavingRef.current) return;
+
       const durationSec = overrideDurationSec ?? timerSecondsElapsed;
       if (durationSec <= 0) {
+        setIsTimerRunning(false);
         setTimerSecondsElapsed(0);
         setSessionStartTime(null);
+        lastTickRef.current = null;
         return;
       }
 
-      const durationMins = Math.round(durationSec / 60);
-      const activeSub = selectedSubject || {
-        id: "general-study",
-        name: "General Study",
-        color: "#ffffff",
-      };
-
-      const now = new Date();
-      const start = sessionStartTime || new Date(now.getTime() - durationSec * 1000);
-
-      await addSession({
-        subjectId: activeSub.id,
-        subjectName: activeSub.name,
-        subjectColor: activeSub.color,
-        durationSeconds: durationSec,
-        durationMinutes: durationMins,
-        startTime: start.toISOString(),
-        endTime: now.toISOString(),
-        mode: timerMode,
-        completed: true,
-      });
-
-      playChime();
-      setShowSavedToast(true);
-      setTimeout(() => setShowSavedToast(false), 4000);
-
+      // Acquire lock & immediately clear UI timer to prevent re-clicks
+      isSavingRef.current = true;
+      setIsSaving(true);
+      setIsTimerRunning(false);
+      lastTickRef.current = null;
       setTimerSecondsElapsed(0);
-      setSessionStartTime(null);
+
+      try {
+        const durationMins = Math.round(durationSec / 60);
+        const activeSub = selectedSubject || {
+          id: "general-study",
+          name: "General Study",
+          color: "#ffffff",
+        };
+
+        const now = new Date();
+        const start = sessionStartTime || new Date(now.getTime() - durationSec * 1000);
+
+        await addSession({
+          subjectId: activeSub.id,
+          subjectName: activeSub.name,
+          subjectColor: activeSub.color,
+          durationSeconds: durationSec,
+          durationMinutes: durationMins,
+          startTime: start.toISOString(),
+          endTime: now.toISOString(),
+          mode: timerMode,
+          completed: true,
+        });
+
+        playChime();
+        setShowSavedToast(true);
+        setTimeout(() => setShowSavedToast(false), 4000);
+      } catch (err) {
+        console.error("[TIMER_SAVE_ERROR]", err);
+      } finally {
+        setSessionStartTime(null);
+        setTimeout(() => {
+          isSavingRef.current = false;
+          setIsSaving(false);
+        }, 500);
+      }
     },
     [timerSecondsElapsed, selectedSubject, sessionStartTime, timerMode, addSession, playChime]
   );
 
-  // Background Persistent Timer Interval (ticks even when switching tabs)
+  // Background Persistent Timer Interval with timestamp delta tracking
   const completeTimerSessionRef = useRef(completeTimerSession);
   useEffect(() => {
     completeTimerSessionRef.current = completeTimerSession;
   }, [completeTimerSession]);
 
+  const timerSecondsElapsedRef = useRef(timerSecondsElapsed);
+  useEffect(() => {
+    timerSecondsElapsedRef.current = timerSecondsElapsed;
+  }, [timerSecondsElapsed]);
+
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
 
     if (isTimerRunning) {
+      lastTickRef.current = Date.now();
+
       interval = setInterval(() => {
-        setTimerSecondsElapsed((prev) => {
-          const nextVal = prev + 1;
-          if (
-            (timerMode === "pomodoro" || timerMode === "countdown") &&
-            nextVal >= timerTargetSeconds
-          ) {
-            completeTimerSessionRef.current(nextVal);
-            return timerTargetSeconds;
-          }
-          return nextVal;
-        });
+        const now = Date.now();
+        const deltaMs = lastTickRef.current ? now - lastTickRef.current : 1000;
+        lastTickRef.current = now;
+        const deltaSec = Math.max(1, Math.round(deltaMs / 1000));
+
+        const current = timerSecondsElapsedRef.current;
+        const nextVal = current + deltaSec;
+
+        if (
+          (timerMode === "pomodoro" || timerMode === "countdown") &&
+          nextVal >= timerTargetSeconds
+        ) {
+          if (interval) clearInterval(interval);
+          completeTimerSessionRef.current(timerTargetSeconds);
+        } else {
+          setTimerSecondsElapsed(nextVal);
+        }
       }, 1000);
     }
 
@@ -647,6 +685,20 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (interval) clearInterval(interval);
     };
   }, [isTimerRunning, timerMode, timerTargetSeconds]);
+
+  // Auto-sync remote data on window focus / tab visibility change
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (typeof document !== "undefined" && document.visibilityState === "visible") {
+        fetchRemoteData();
+      }
+    };
+
+    if (typeof document !== "undefined") {
+      document.addEventListener("visibilitychange", handleVisibilityChange);
+      return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+    }
+  }, [fetchRemoteData]);
 
   // Streak & Screen Time Statistics
   const streakStats: StreakStats = useMemo(() => {
@@ -783,6 +835,7 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         pauseTimer,
         resetTimer,
         completeTimerSession,
+        isSaving,
         showSavedToast,
         setShowSavedToast,
       }}

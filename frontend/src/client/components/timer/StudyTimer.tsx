@@ -30,6 +30,7 @@ export const StudyTimer: React.FC<StudyTimerProps> = ({ onOpenSubjectModal }) =>
     pauseTimer,
     resetTimer,
     completeTimerSession,
+    isSaving,
     showSavedToast,
     setShowSavedToast,
   } = useStudy();
@@ -396,12 +397,15 @@ export const StudyTimer: React.FC<StudyTimerProps> = ({ onOpenSubjectModal }) =>
             <>
               <button
                 onClick={() => completeTimerSession()}
-                className="btn-secondary text-xs px-3.5 py-2 text-emerald-600 dark:text-emerald-400 border-emerald-500/40 hover:bg-emerald-500/10 cursor-pointer flex items-center gap-1.5"
+                disabled={isSaving || timerSecondsElapsed <= 0}
+                className="btn-secondary text-xs px-3.5 py-2 text-emerald-600 dark:text-emerald-400 border-emerald-500/40 hover:bg-emerald-500/10 cursor-pointer flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
                 title="Save study session now"
               >
                 <Check className="w-3.5 h-3.5" />
                 <span>
-                  Done ({formatDurationLabel(Math.max(1, Math.round(timerSecondsElapsed / 60)))})
+                  {isSaving
+                    ? "Saving..."
+                    : `Done (${formatDurationLabel(Math.max(1, Math.round(timerSecondsElapsed / 60)))})`}
                 </span>
               </button>
 

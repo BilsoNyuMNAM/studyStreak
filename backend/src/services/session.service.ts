@@ -22,6 +22,29 @@ export class SessionService {
   }
 
   static async create(data: SessionCreateInput) {
+    const startDate = new Date(data.startTime);
+    const endDate = new Date(data.endTime);
+
+    // Deduplication check: return existing record if identical session submitted within ±5s window
+    const windowStart = new Date(startDate.getTime() - 5000);
+    const windowEnd = new Date(startDate.getTime() + 5000);
+
+    const existingDuplicate = await prisma.studySession.findFirst({
+      where: {
+        subjectId: data.subjectId,
+        durationSeconds: data.durationSeconds,
+        startTime: {
+          gte: windowStart,
+          lte: windowEnd,
+        },
+      },
+    });
+
+    if (existingDuplicate) {
+      console.log(`[DEDUPLICATION] Prevented duplicate session. Returning existing: ${existingDuplicate.id}`);
+      return existingDuplicate;
+    }
+
     let subject = await prisma.subject.findUnique({
       where: { id: data.subjectId },
     });
@@ -43,8 +66,8 @@ export class SessionService {
         subjectColor: data.subjectColor,
         durationMinutes: data.durationMinutes,
         durationSeconds: data.durationSeconds,
-        startTime: new Date(data.startTime),
-        endTime: new Date(data.endTime),
+        startTime: startDate,
+        endTime: endDate,
         mode: data.mode,
         notes: data.notes,
         completed: data.completed,
