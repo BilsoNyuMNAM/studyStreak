@@ -682,11 +682,60 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
   }, [isTimerRunning, timerMode, timerTargetSeconds]);
 
-  // Auto-sync remote data on window focus / tab visibility change
+  // Screen Wake Lock API to prevent device from sleeping while timer is running
+  const wakeLockSentinelRef = useRef<{ release: () => Promise<void> } | null>(null);
+
+  const requestWakeLock = useCallback(async () => {
+    try {
+      if (
+        typeof window !== "undefined" &&
+        "wakeLock" in navigator &&
+        !wakeLockSentinelRef.current &&
+        document.visibilityState === "visible"
+      ) {
+        const sentinel = await (navigator as unknown as { wakeLock: { request: (type: string) => Promise<{ release: () => Promise<void>; addEventListener: (event: string, callback: () => void) => void }> } }).wakeLock.request("screen");
+        wakeLockSentinelRef.current = sentinel;
+        sentinel.addEventListener("release", () => {
+          wakeLockSentinelRef.current = null;
+        });
+      }
+    } catch (err) {
+      console.warn("Screen wake lock request warning:", err);
+    }
+  }, []);
+
+  const releaseWakeLock = useCallback(async () => {
+    try {
+      if (wakeLockSentinelRef.current) {
+        await wakeLockSentinelRef.current.release();
+        wakeLockSentinelRef.current = null;
+      }
+    } catch (err) {
+      console.warn("Screen wake lock release warning:", err);
+    }
+  }, []);
+
+  // Manage Wake Lock based on timer state
+  useEffect(() => {
+    if (isTimerRunning) {
+      requestWakeLock();
+    } else {
+      releaseWakeLock();
+    }
+
+    return () => {
+      releaseWakeLock();
+    };
+  }, [isTimerRunning, requestWakeLock, releaseWakeLock]);
+
+  // Auto-sync remote data and re-acquire wake lock on window focus / tab visibility change
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (typeof document !== "undefined" && document.visibilityState === "visible") {
         fetchRemoteData();
+        if (isTimerRunning) {
+          requestWakeLock();
+        }
       }
     };
 
@@ -694,7 +743,7 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       document.addEventListener("visibilitychange", handleVisibilityChange);
       return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
     }
-  }, [fetchRemoteData]);
+  }, [fetchRemoteData, isTimerRunning, requestWakeLock]);
 
   // Streak & Screen Time Statistics
   const streakStats: StreakStats = useMemo(() => {
